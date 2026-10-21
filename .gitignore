@@ -1,0 +1,10 @@
+filetra.exe
+filetra
+dist/
+testdata/
+testdata2/
+*.zip
+
+# C 版构建产物与 zig 工具链（可用 filetra-c\tools\fetch-assets.mjs 重新下载）
+cdist/
+zig-windows-*/
