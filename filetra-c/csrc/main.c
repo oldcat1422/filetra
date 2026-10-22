@@ -130,6 +130,7 @@ static wchar_t g_dataW[PWCAP];        /* 数据目录 %APPDATA%\filetra */
 static char    g_nameU8[256];
 static wchar_t g_nameW[256];
 static char    g_pass[128];
+static char    g_user[64] = "filetra";
 static int     g_port = 5050;
 static char    g_instance[24];        /* 12 hex */
 static int     g_noBrowser = 0;
@@ -2459,7 +2460,7 @@ static int auth_ok(Rq *r){
 	char *col = strchr(raw, ':');
 	if (!col) return 0;
 	*col = 0;
-	if (!consteq(raw, "filetra")) return 0;
+	if (!consteq(raw, g_user)) return 0;
 	return consteq(col + 1, g_pass);
 }
 
@@ -2648,7 +2649,7 @@ static void banner(const char *url){
 			printf("             http://%s:%d\n", ips[i], g_port);
 		ar_free(&a);
 	}
-	if (g_pass[0]) printf("  访问密码 : 已启用（用户名 filetra）\n");
+	if (g_pass[0]) printf("  访问密码 : 已启用（用户名 %s）\n", g_user);
 	printf("  其他设备:浏览器访问上面的地址即可互传\n");
 	printf("  %s\n\n", LN);
 	fflush(stdout);
@@ -2723,7 +2724,7 @@ static void conf_apply(const char **dirArg){
 	if (rd >= 3 && (unsigned char)base[0] == 0xEF && (unsigned char)base[1] == 0xBB && (unsigned char)base[2] == 0xBF)
 		base += 3;                                      /* 跳过 UTF-8 BOM */
 
-	char *applied[5]; int nApplied = 0;
+	char *applied[6]; int nApplied = 0;
 	char *p = base;
 	for (int ln = 1; *p; ln++){
 		char *nl = strchr(p, '\n');
@@ -2762,6 +2763,12 @@ static void conf_apply(const char **dirArg){
 			if (strlen(val) >= sizeof(g_pass) - 1)
 				fprintf(stderr, "配置第 %d 行 password 过长，已忽略\n", ln);
 			else { strcpy(g_pass, val); applied[nApplied++] = "password"; }
+		} else if (conf_eq_ci(key, "user")){
+			if (strchr(val, ':'))
+				fprintf(stderr, "配置第 %d 行 user 不能包含 ':'，已忽略\n", ln);
+			else if (strlen(val) >= sizeof(g_user))
+				fprintf(stderr, "配置第 %d 行 user 过长，已忽略\n", ln);
+			else { strcpy(g_user, val); applied[nApplied++] = "user"; }
 		} else if (conf_eq_ci(key, "no-browser")){
 			int b;
 			if (!conf_bool(val, &b))
@@ -2869,6 +2876,12 @@ int main(int argc, char **argv){
 		} else if (!strcmp(key, "-password") || !strcmp(key, "--password")){
 			if (!val && i + 1 < argc) val = argv[++i];
 			if (val) strncpy(g_pass, val, 127);
+		} else if (!strcmp(key, "-user") || !strcmp(key, "--user")){
+			if (!val && i + 1 < argc) val = argv[++i];
+			if (val && val[0] && !strchr(val, ':') && strlen(val) < sizeof(g_user)){
+				strncpy(g_user, val, sizeof(g_user) - 1);
+				g_user[sizeof(g_user) - 1] = 0;
+			}
 		} else if (!strcmp(key, "-no-browser") || !strcmp(key, "--no-browser")){
 			g_noBrowser = 1;
 		}

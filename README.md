@@ -64,8 +64,9 @@ filetra-c/           C 版源码与构建脚本（仅 Windows）
 # 共享指定目录
 .\filetra.exe -dir D:\电影
 
-# 带访问密码（用户名固定为 filetra）
+# 带访问密码（登录用户名默认 filetra，可用 -user 自定义）
 .\filetra.exe -dir D:\共享 -password 我的密码
+.\filetra.exe -dir D:\共享 -user 老猫 -password 我的密码
 ```
 
 两版参数**完全一致**（均支持 `-flag value` 与 `-flag=value`；C 版还接受 `--flag` 长横线写法）：
@@ -75,7 +76,8 @@ filetra-c/           C 版源码与构建脚本（仅 Windows）
 | `-dir` | 当前目录 | 要共享的目录 |
 | `-port` | 5050 | HTTP 端口，被占用时自动顺延 |
 | `-name` | 计算机名 | 设备显示名称 |
-| `-password` | 无 | 访问密码（Basic Auth，用户名 `filetra`） |
+| `-password` | 无 | 访问密码（Basic Auth） |
+| `-user` | filetra | 登录用户名（不能包含冒号 `:`） |
 | `-no-browser` | false | 启动后不自动打开浏览器 |
 
 ### ⚙️ 外置配置文件 filetra.conf
@@ -92,6 +94,7 @@ port=5050
 name=书房电脑
 dir=D:\电影
 password=
+user=filetra
 no-browser=false
 ```
 
@@ -100,7 +103,8 @@ no-browser=false
 | `port` | 5050 | HTTP 端口（1~65535，被占用时自动顺延） |
 | `name` | 计算机名 | 设备显示名称 |
 | `dir` | 当前目录 | 共享目录——**客户端只能浏览/操作该目录内的文件**（含 `..` 穿越防护） |
-| `password` | 无 | 访问密码（Basic Auth，用户名固定 `filetra`）；留空=不启用 |
+| `password` | 无 | 访问密码（Basic Auth）；留空=不启用 |
+| `user` | filetra | 登录用户名，不能包含冒号 `:` |
 | `no-browser` | false | 可用 true/false、1/0、yes/no、on/off（不区分大小写） |
 
 启动后会打印访问地址（如 `http://192.168.1.10:5050`），其他设备：

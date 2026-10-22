@@ -29,8 +29,9 @@ Go + 内嵌网页 → 一个 exe（约 7MB）
 # 共享指定目录
 .\filetra.exe -dir D:\电影
 
-# 带访问密码（用户名固定为 filetra）
+# 带访问密码（登录用户名默认 filetra，可用 -user 自定义）
 .\filetra.exe -dir D:\共享 -password 我的密码
+.\filetra.exe -dir D:\共享 -user 老猫 -password 我的密码
 ```
 
 启动后会打印访问地址（如 `http://192.168.1.10:5050`），其他设备：
@@ -48,7 +49,8 @@ Go + 内嵌网页 → 一个 exe（约 7MB）
 | `-dir` | 当前目录 | 要共享的目录 |
 | `-port` | 5050 | HTTP 端口，被占用时自动顺延 |
 | `-name` | 计算机名 | 设备显示名称 |
-| `-password` | 无 | 访问密码（Basic Auth，用户名 `filetra`） |
+| `-password` | 无 | 访问密码（Basic Auth） |
+| `-user` | filetra | 登录用户名（不能包含冒号 `:`） |
 | `-no-browser` | false | 启动后不自动打开浏览器 |
 
 ## ⚙️ 外置配置文件 filetra.conf
@@ -57,7 +59,7 @@ Go + 内嵌网页 → 一个 exe（约 7MB）
 
 - **优先级：配置文件 > 命令行参数 > 内置默认值**；文件不存在时行为完全不变
 - 格式：UTF-8（可带 BOM），`key=value`，`#` 整行注释；空值=未设置；未知键/不合法值提示后忽略
-- 键：`port`、`name`、`dir`、`password`、`no-browser`（布尔支持 true/false、1/0、yes/no、on/off）
+- 键：`port`、`name`、`dir`、`password`、`user`、`no-browser`（布尔支持 true/false、1/0、yes/no、on/off）
 - `dir` 指定共享目录，**客户端只能浏览/操作该目录内的文件**（含 `..` 穿越防护）
 
 ## 🛠 构建

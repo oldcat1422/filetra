@@ -25,6 +25,7 @@ var (
 	dataDir    string
 	deviceName string
 	password   string
+	authUser   string
 	port       int
 	instanceID string
 
@@ -34,12 +35,13 @@ var (
 
 func main() {
 	var userPort int
-	var dirFlag, nameFlag, passFlag string
+	var dirFlag, nameFlag, passFlag, userFlag string
 	var noBrowser bool
 	flag.IntVar(&userPort, "port", 5050, "HTTP 端口，被占用时自动顺延")
 	flag.StringVar(&dirFlag, "dir", ".", "要共享的目录")
 	flag.StringVar(&nameFlag, "name", "", "设备显示名称，默认取计算机名")
-	flag.StringVar(&passFlag, "password", "", "访问密码（可选），用户名固定为 filetra")
+	flag.StringVar(&userFlag, "user", "filetra", "访问用户名（默认 filetra）")
+	flag.StringVar(&passFlag, "password", "", "访问密码（可选），用户名默认 filetra，可用 -user 自定义")
 	flag.BoolVar(&noBrowser, "no-browser", false, "启动后不自动打开浏览器")
 	flag.Parse()
 
@@ -57,6 +59,9 @@ func main() {
 		if c.hasPassword {
 			passFlag = c.password
 		}
+		if c.hasUser {
+			userFlag = c.user
+		}
 		if c.hasNoBrowser {
 			noBrowser = c.noBrowser
 		}
@@ -64,6 +69,7 @@ func main() {
 	}
 
 	password = passFlag
+	authUser = userFlag
 	instanceID = randHex(6)
 
 	abs, err := filepath.Abs(dirFlag)
@@ -197,7 +203,7 @@ func wrapAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if password != "" {
 			user, pass, ok := r.BasicAuth()
-			uOK := subtle.ConstantTimeCompare([]byte(user), []byte("filetra")) == 1
+			uOK := subtle.ConstantTimeCompare([]byte(user), []byte(authUser)) == 1
 			pOK := subtle.ConstantTimeCompare([]byte(pass), []byte(password)) == 1
 			if !ok || !uOK || !pOK {
 				w.Header().Set("WWW-Authenticate", `Basic realm="FileTra", charset="UTF-8"`)

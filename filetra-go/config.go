@@ -21,6 +21,8 @@ type confT struct {
 	hasDir      bool
 	password    string
 	hasPassword bool
+	user        string
+	hasUser     bool
 	noBrowser   bool
 	hasNoBrowser bool
 }
@@ -108,6 +110,17 @@ func loadConf() (*confT, []string) {
 			}
 			c.password, c.hasPassword = val, true
 			applied = append(applied, "password")
+		case "user":
+			if strings.Contains(val, ":") {
+				fmt.Fprintf(os.Stderr, "配置第 %d 行 user 不能包含 ':'，已忽略\n", no)
+				break
+			}
+			if len(val) >= 64 {
+				fmt.Fprintf(os.Stderr, "配置第 %d 行 user 过长，已忽略\n", no)
+				break
+			}
+			c.user, c.hasUser = val, true
+			applied = append(applied, "user")
 		case "no-browser":
 			bv, ok := confBool(val)
 			if !ok {
