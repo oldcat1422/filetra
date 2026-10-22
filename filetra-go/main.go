@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -41,6 +42,26 @@ func main() {
 	flag.StringVar(&passFlag, "password", "", "访问密码（可选），用户名固定为 filetra")
 	flag.BoolVar(&noBrowser, "no-browser", false, "启动后不自动打开浏览器")
 	flag.Parse()
+
+	// 外置配置文件（exe 同目录 filetra.conf）：优先级 配置文件 > 命令行 > 内置默认值
+	if c, applied := loadConf(); c != nil {
+		if c.hasPort {
+			userPort = c.port
+		}
+		if c.hasDir {
+			dirFlag = c.dir
+		}
+		if c.hasName {
+			nameFlag = c.name
+		}
+		if c.hasPassword {
+			passFlag = c.password
+		}
+		if c.hasNoBrowser {
+			noBrowser = c.noBrowser
+		}
+		fmt.Printf("配置文件 filetra.conf 生效：%s\n", strings.Join(applied, "、"))
+	}
 
 	password = passFlag
 	instanceID = randHex(6)

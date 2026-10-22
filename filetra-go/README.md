@@ -51,6 +51,15 @@ Go + 内嵌网页 → 一个 exe（约 7MB）
 | `-password` | 无 | 访问密码（Basic Auth，用户名 `filetra`） |
 | `-no-browser` | false | 启动后不自动打开浏览器 |
 
+## ⚙️ 外置配置文件 filetra.conf
+
+与 exe **同目录**的 `filetra.conf`（详见仓库根 README 的示例与键表）。要点：
+
+- **优先级：配置文件 > 命令行参数 > 内置默认值**；文件不存在时行为完全不变
+- 格式：UTF-8（可带 BOM），`key=value`，`#` 整行注释；空值=未设置；未知键/不合法值提示后忽略
+- 键：`port`、`name`、`dir`、`password`、`no-browser`（布尔支持 true/false、1/0、yes/no、on/off）
+- `dir` 指定共享目录，**客户端只能浏览/操作该目录内的文件**（含 `..` 穿越防护）
+
 ## 🛠 构建
 
 需要 Go 1.24+，一键构建所有平台单文件：
@@ -85,8 +94,9 @@ filetra.exe
 ├── upload.go      分片上传会话管理（init/chunk/status/complete/abort）
 ├── discovery.go   UDP 广播设备发现（同机多开互不冲突）
 ├── store.go       历史与文本的 JSON 持久化（写入数据目录）
-├── util.go        路径安全、文件名清洗、局域网 IP 探测
-└── web/           内嵌前端（原生 JS/CSS，无第三方依赖）
+├── util.go         路径安全、文件名清洗、局域网 IP 探测
+├── config.go       外置配置文件 filetra.conf（优先级：配置 > 命令行 > 默认值）
+└── web/            内嵌前端（原生 JS/CSS，无第三方依赖）
 ```
 
 **上传断点续传原理**：前端把文件按 4MB 顺序分片 `POST /api/upload/chunk?id=&offset=`；服务端校验 `offset` 与已接收字节数严格相等才追加写入，否则返回真实进度（防止重试导致重复内容）；请求失败时前端查询 `/status` 获得服务端进度，从断点继续。下载则由 `http.ServeContent` 原生提供 Range 支持。

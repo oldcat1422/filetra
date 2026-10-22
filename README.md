@@ -29,7 +29,7 @@
 
 ```
 filetra-go/          Go 版源码与构建脚本
-├── main.go / api.go / upload.go / discovery.go / store.go / util.go
+├── main.go / api.go / upload.go / discovery.go / store.go / util.go / config.go
 ├── go.mod / go.sum
 ├── build.ps1        Windows 一键交叉构建（8 平台 → dist\）
 ├── build.sh         Linux/macOS 一键交叉构建
@@ -77,6 +77,31 @@ filetra-c/           C 版源码与构建脚本（仅 Windows）
 | `-name` | 计算机名 | 设备显示名称 |
 | `-password` | 无 | 访问密码（Basic Auth，用户名 `filetra`） |
 | `-no-browser` | false | 启动后不自动打开浏览器 |
+
+### ⚙️ 外置配置文件 filetra.conf
+
+两版均支持与 exe **同目录**的 `filetra.conf`。**文件不存在时行为完全不变**（内置默认值 + 命令行参数）。
+
+- 优先级：**配置文件 > 命令行参数 > 内置默认值**——命令行仅在配置文件未提供对应键时生效
+- 格式：UTF-8 文本（可带 BOM），`key=value`，`#` 开头整行注释；空值=未设置；未知键/不合法值打印提示后忽略
+- `dir` 相对路径按启动时的工作目录解析（与 `-dir` 行为一致）
+
+```conf
+# FileTra 配置（修改后重启生效）
+port=5050
+name=书房电脑
+dir=D:\电影
+password=
+no-browser=false
+```
+
+| 键 | 默认 | 说明 |
+|----|------|------|
+| `port` | 5050 | HTTP 端口（1~65535，被占用时自动顺延） |
+| `name` | 计算机名 | 设备显示名称 |
+| `dir` | 当前目录 | 共享目录——**客户端只能浏览/操作该目录内的文件**（含 `..` 穿越防护） |
+| `password` | 无 | 访问密码（Basic Auth，用户名固定 `filetra`）；留空=不启用 |
+| `no-browser` | false | 可用 true/false、1/0、yes/no、on/off（不区分大小写） |
 
 启动后会打印访问地址（如 `http://192.168.1.10:5050`），其他设备：
 

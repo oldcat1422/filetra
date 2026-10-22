@@ -2651,6 +2651,133 @@ static void banner(const char *url){
 	if (g_pass[0]) printf("  访问密码 : 已启用（用户名 filetra）\n");
 	printf("  其他设备:浏览器访问上面的地址即可互传\n");
 	printf("  %s\n\n", LN);
+	fflush(stdout);
+}
+
+/* ------------------------------------------------------------------
+ * 外置配置文件 filetra.conf（与 exe 同目录）
+ * 优先级：配置文件 > 命令行参数 > 内置默认值
+ * 格式：UTF-8（可带 BOM），key=value，# 开头整行注释；空值=未设置；
+ *       未知键/不合法值打印提示后忽略，其余行为不变
+ * ------------------------------------------------------------------ */
+#define CONF_MAX  (64*1024)
+static char g_confBuf[CONF_MAX + 8];
+
+static int conf_ws(char c){
+	return c == ' ' || c == '\t' || c == '\r';
+}
+static char *conf_lskip(char *s){
+	while (*s && conf_ws(*s)) s++;
+	return s;
+}
+static void conf_rstrip(char *s){
+	size_t n = strlen(s);
+	while (n && conf_ws(s[n-1])) s[--n] = 0;
+}
+static int conf_eq_ci(const char *a, const char *b){ /* ASCII 不区分大小写比较 */
+	while (*a && *b){
+		char x = *a, y = *b;
+		if (x >= 'A' && x <= 'Z') x += 32;
+		if (y >= 'A' && y <= 'Z') y += 32;
+		if (x != y) return 0;
+		a++; b++;
+	}
+	return *a == 0 && *b == 0;
+}
+static int conf_int(const char *v, int lo, int hi, int *out){
+	if (!v[0]) return 0;
+	char *e; long n = strtol(v, &e, 10);
+	if (e == v || n < lo || n > hi) return 0;
+	while (*e){ if (!conf_ws(*e++)) return 0; }
+	*out = (int)n;
+	return 1;
+}
+static int conf_bool(const char *v, int *out){
+	if (conf_eq_ci(v, "true") || conf_eq_ci(v, "1") || conf_eq_ci(v, "yes") || conf_eq_ci(v, "on")){ *out = 1; return 1; }
+	if (conf_eq_ci(v, "false") || conf_eq_ci(v, "0") || conf_eq_ci(v, "no") || conf_eq_ci(v, "off")){ *out = 0; return 1; }
+	return 0;
+}
+
+static void conf_apply(const char **dirArg){
+	wchar_t exep[520];
+	DWORD n = GetModuleFileNameW(NULL, exep, 520);
+	if (!n || n >= 520) return;
+	wchar_t *sl = wcsrchr(exep, L'\\');
+	if (!sl) return;
+	sl[1] = 0;
+	if (!wccat(exep, 520, L"filetra.conf")) return;
+
+	HANDLE f = CreateFileW(exep, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	if (f == INVALID_HANDLE_VALUE) return;              /* 没有配置文件 → 一切照旧 */
+	DWORD fsz = GetFileSize(f, NULL);
+	if (fsz == INVALID_FILE_SIZE || fsz > CONF_MAX){
+		CloseHandle(f);
+		if (fsz != INVALID_FILE_SIZE) fprintf(stderr, "配置文件过大（上限 64KB），已忽略\n");
+		return;
+	}
+	DWORD rd = 0;
+	if (!ReadFile(f, g_confBuf, fsz, &rd, NULL) || rd != fsz){ CloseHandle(f); return; }
+	CloseHandle(f);
+	g_confBuf[rd] = 0;
+	char *base = g_confBuf;
+	if (rd >= 3 && (unsigned char)base[0] == 0xEF && (unsigned char)base[1] == 0xBB && (unsigned char)base[2] == 0xBF)
+		base += 3;                                      /* 跳过 UTF-8 BOM */
+
+	char *applied[5]; int nApplied = 0;
+	char *p = base;
+	for (int ln = 1; *p; ln++){
+		char *nl = strchr(p, '\n');
+		if (nl) *nl = 0;
+		char *line = conf_lskip(p);
+		conf_rstrip(line);
+		if (!*line || *line == '#'){ p = nl ? nl + 1 : p + strlen(p); continue; }
+		char *eq = strchr(line, '=');
+		if (!eq){
+			fprintf(stderr, "配置第 %d 行缺少 '='，已忽略\n", ln);
+			p = nl ? nl + 1 : p + strlen(p); continue;
+		}
+		*eq = 0;                                        /* key 即 line（已去两侧空白） */
+		char *key = line;
+		char *val = conf_lskip(eq + 1);
+		conf_rstrip(val);
+		char kn[40];
+		if (strlen(key) >= sizeof(kn)){
+			fprintf(stderr, "配置第 %d 行键名过长，已忽略\n", ln);
+		} else if (!*val){
+			/* 空值统一按"未设置"处理（password 留空=不启用，dir 留空=用默认） */
+		} else if (conf_eq_ci(key, "port")){
+			int pp;
+			if (!conf_int(val, 1, 65535, &pp))
+				fprintf(stderr, "配置第 %d 行 port 值无效（应为 1~65535），已忽略\n", ln);
+			else { g_port = pp; applied[nApplied++] = "port"; }
+		} else if (conf_eq_ci(key, "name")){
+			if (strlen(val) >= sizeof(g_nameU8) - 1)
+				fprintf(stderr, "配置第 %d 行 name 过长，已忽略\n", ln);
+			else { strcpy(g_nameU8, val); applied[nApplied++] = "name"; }
+		} else if (conf_eq_ci(key, "dir")){
+			if (strlen(val) >= 518)
+				fprintf(stderr, "配置第 %d 行 dir 过长，已忽略\n", ln);
+			else { *dirArg = val; applied[nApplied++] = "dir"; }
+		} else if (conf_eq_ci(key, "password")){
+			if (strlen(val) >= sizeof(g_pass) - 1)
+				fprintf(stderr, "配置第 %d 行 password 过长，已忽略\n", ln);
+			else { strcpy(g_pass, val); applied[nApplied++] = "password"; }
+		} else if (conf_eq_ci(key, "no-browser")){
+			int b;
+			if (!conf_bool(val, &b))
+				fprintf(stderr, "配置第 %d 行 no-browser 值无效（true/false/1/0/yes/no/on/off），已忽略\n", ln);
+			else { g_noBrowser = b; applied[nApplied++] = "no-browser"; }
+		} else {
+			fprintf(stderr, "配置第 %d 行未识别的键 '%s'，已忽略\n", ln, key);
+		}
+		p = nl ? nl + 1 : p + strlen(p);
+	}
+	if (nApplied){
+		printf("配置文件 filetra.conf 生效：");
+		for (int i = 0; i < nApplied; i++) printf(i ? "、%s" : "%s", applied[i]);
+		printf("\n");
+		fflush(stdout);
+	}
 }
 
 static void resolve_paths(const char *dirArg){
@@ -2747,6 +2874,7 @@ int main(int argc, char **argv){
 		}
 	}
 	g_nameU8[255] = 0;
+	conf_apply(&dirArg);
 	resolve_paths(dirArg);
 	if (!g_nameU8[0]){
 		wchar_t cn[256];
