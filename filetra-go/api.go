@@ -327,7 +327,8 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 
 func handleMkdir(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Path string `json:"path"`
+		Path string `json:"path"` // 新目录名
+		Dir  string `json:"dir"`  // 当前浏览的子目录，空=根目录
 	}
 	if err := readJSON(r, &body); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
@@ -338,9 +339,17 @@ func handleMkdir(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "无效的目录名")
 		return
 	}
-	absp, err := safePath(name)
+	rel := name
+	if d := sanitizeRelDir(body.Dir); d != "" {
+		rel = d + "/" + name
+	}
+	absp, err := safePath(rel)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "非法路径")
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(absp), 0o755); err != nil {
+		writeErr(w, http.StatusInternalServerError, "创建失败")
 		return
 	}
 	if err := os.Mkdir(absp, 0o755); err != nil {

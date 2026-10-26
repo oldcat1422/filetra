@@ -358,7 +358,7 @@ $('#btnMkdir').onclick = async () => {
 	const name = prompt('新建文件夹名称：');
 	if (!name) return;
 	try {
-		await jpost('/api/mkdir', { path: name });
+		await jpost('/api/mkdir', { dir: state.cwd, path: name });
 		toast('已创建');
 		refreshListing();
 	} catch (e) { toast(e.message, 'err'); }

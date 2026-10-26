@@ -2223,22 +2223,47 @@ static void hMkdir(Aren *a, Rq *r){
 		return;
 	}
 	const char *p0 = jstr_get(j, "path", "");
+	const char *dir0 = jstr_get(j, "dir", ""); /* 当前浏览的子目录，空=根目录 */
 	char *name = sanitizeName(a, p0);
 	if (!name[0]){
 		resp_err(a, r, 400, "无效的目录名");
 		return;
 	}
+	char *relDir = sanitizeRelDir(a, dir0);
+	char rel[4096];
+	if (strlen(relDir) + strlen(name) + 2 >= sizeof(rel)){
+		resp_err(a, r, 400, "路径过长");
+		return;
+	}
+	if (relDir[0]) _snprintf(rel, sizeof(rel) - 1, "%s/%s", relDir, name);
+	else           _snprintf(rel, sizeof(rel) - 1, "%s", name);
+	rel[sizeof(rel) - 1] = 0;
 	wchar_t abs[PWCAP]; char *echo = NULL;
-	if (!safePathW(a, name, abs, &echo)){
+	if (!safePathW(a, rel, abs, &echo)){
 		resp_err(a, r, 400, "非法路径");
 		return;
 	}
-	if (!CreateDirectoryW(abs, NULL)){
-		DWORD e = GetLastError();
-		if (e == ERROR_ALREADY_EXISTS){
-			resp_err(a, r, 409, "同名目录已存在");
-			return;
-		}
+	FINFO fi;
+	if (wstat(abs, &fi)){
+		resp_err(a, r, 409, fi.isDir ? "同名目录已存在" : "同名文件已存在");
+		return;
+	}
+	/* 分段创建（父目录可能已存在，逐段建到目标） */
+	wchar_t tmpD[PWCAP];
+	wchar_t *relw = u2w(a, rel);
+	if (!relw){
+		resp_err(a, r, 500, "创建失败");
+		return;
+	}
+	wcscpy(tmpD, relw);
+	for (wchar_t *p = tmpD; *p; p++) if (*p == L'\\') *p = L'/';
+	wchar_t *segs[24]; int ns = 0;
+	wchar_t *ctx = NULL, *tok = wcstok(tmpD, L"/", &ctx);
+	while (tok && ns < 20){
+		if (tok[0] && wcscmp(tok, L".") && wcscmp(tok, L"..")) segs[ns++] = tok;
+		tok = wcstok(NULL, L"/", &ctx);
+	}
+	if (!ns || !mkdirSubW(g_rootW, segs, ns)){
 		resp_err(a, r, 500, "创建失败");
 		return;
 	}
