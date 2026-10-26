@@ -1,7 +1,7 @@
 /* =====================================================================
  * FileTra C 版 — 手写内嵌 HTTP 服务器（Winsock2），qrcodegen 仅用于二维码
  * 目标：i686 静态单 exe，WinXP SP3 ~ Win11 全兼容（32/64）
- * 协议与 Go 版逐字段对齐（前端 web/ 零改动直接复用）
+ * 协议与前端 web/ 逐字段对齐（前端 web/ 零改动直接复用）
  * ===================================================================== */
 #define WIN32_LEAN_AND_MEAN
 #ifndef _WIN32_WINNT
@@ -648,7 +648,7 @@ static void zipWalk(const wchar_t *dir, const char *pref, Aren *a, ZWItem **arr,
 	if (h == INVALID_HANDLE_VALUE) return;
 	do {
 		if (!wcscmp(fd.cFileName, L".") || !wcscmp(fd.cFileName, L"..")) continue;
-		if (fd.cFileName[0] == L'.') continue;                 /* 与 Go 版一致：隐藏/临时文件跳过 */
+		if (fd.cFileName[0] == L'.') continue;                 /* 隐藏/临时文件跳过 */
 		if (!wcsncmp(fd.cFileName, TEMP_PREFIX_W, 8)) continue;
 		wchar_t sub[PWCAP];
 		wcscpy(sub, dir);
@@ -1130,7 +1130,7 @@ static int ip_is_private(unsigned a){
 	unsigned b0 = a & 0xFF, b1 = (a >> 8) & 0xFF;
 	return b0 == 10 || (b0 == 172 && b1 >= 16 && b1 <= 31) || (b0 == 192 && b1 == 168);
 }
-/* lanIPv4s：私网优先，各组按字典序（与 Go 版一致） */
+/* lanIPv4s：私网优先，各组按字典序 */
 static void lan_list(Aren *a, char ***out, int *cnt){
 	unsigned *ips, *masks; int n = 0;
 	*out = NULL; *cnt = 0;
@@ -1256,7 +1256,7 @@ static void startDiscovery(void){
 }
 
 /* ------------------------------------------------------------------
- * 名称清洗（与 Go 版同规则）
+ * 名称清洗规则
  * ------------------------------------------------------------------ */
 static void wc_filter(wchar_t *w){
 	/* 逐字符替换非法字符为 '_'（不改变缓冲） */
@@ -2105,7 +2105,7 @@ static void hTextsGet(Aren *a, Rq *r){
 	free(s.p);
 }
 static void preview60(Aren *a, const char *src, char **out){
-	/* 前 60 个字符 + “…”（Go 版 rune 语义） */
+	/* 前 60 个字符 + “…”（按 UTF-8 码点计） */
 	size_t i = 0, runes = 0;
 	while (src[i] && runes < 60){
 		i++;
